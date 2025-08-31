@@ -8,141 +8,102 @@ from transformers import (
     TrainingArguments,
 )
 
-# === Step 1: Configuration ===
-def get_config():
-    DATA_FILE = "data/mydata.txt"
-    MODEL_NAME = "gpt2"
-    OUTPUT_DIR = "finetuned_model"
-    BLOCK_SIZE = 128
-    EPOCHS = 3
-    LR = 2e-5
-    BATCH_SIZE = 2
-    return DATA_FILE, MODEL_NAME, OUTPUT_DIR, BLOCK_SIZE, EPOCHS, LR, BATCH_SIZE
+# === Configurations ===
+DATA_FILE = "data/mydata.txt"   # Apna dataset file ka path
+MODEL_NAME = "gpt2"             # "gpt2-medium" bhi try kar sakte ho agar GPU available hai
+OUTPUT_DIR = "finetuned_model"  # Jahan model save karna hai
+BLOCK_SIZE = 128                # Sequence length for training
+EPOCHS = 3                     # Kitne epochs tak train karna hai
+LR = 2e-5                      # Learning rate
+BATCH_SIZE = 2                 # Batch size
 
-# === Step 2: Check dataset file exists ===
-def check_dataset_file(path):
-    print(f"Checking if dataset file exists at {path} ...")
-    if not os.path.exists(path):
-        raise FileNotFoundError(f"Dataset file not found at {path}")
-    print("Dataset file found.")
+# === Step 1: Check if dataset file exists ===
+if not os.path.exists(DATA_FILE):
+    raise FileNotFoundError(f"Dataset file not found at {DATA_FILE}")
+print(f"📂 Loading dataset from {DATA_FILE} ...")
 
-# === Step 3: Load dataset ===
-def load_text_dataset(data_file):
-    print(f"Loading dataset from {data_file} ...")
-    dataset = load_dataset("text", data_files={"train": data_file})
-    print(f"Dataset loaded with {len(dataset['train'])} samples.")
-    return dataset
+# === Step 2: Load dataset using Huggingface datasets ===
+raw_ds = load_dataset("text", data_files={"train": DATA_FILE})
+print(f"Dataset loaded. Number of samples: {len(raw_ds['train'])}")
 
-# === Step 4: Load tokenizer ===
-def load_tokenizer(model_name):
-    print(f"Loading tokenizer for {model_name} ...")
-    tokenizer = GPT2TokenizerFast.from_pretrained(model_name)
-    print(f"Original pad token: {tokenizer.pad_token}")
-    tokenizer.pad_token = tokenizer.eos_token
-    print(f"Pad token set to EOS token: {tokenizer.pad_token}")
-    return tokenizer
+# === Step 3: Load tokenizer ===
+print(f"Loading tokenizer for model {MODEL_NAME} ...")
+tokenizer = GPT2TokenizerFast.from_pretrained(MODEL_NAME)
 
-# === Step 5: Tokenize dataset ===
-def tokenize_dataset(dataset, tokenizer):
-    print("Tokenizing dataset ...")
-    def tokenize_function(examples):
-        return tokenizer(examples["text"])
-    tokenized = dataset.map(tokenize_function, batched=True, remove_columns=["text"])
-    print("Tokenization complete.")
-    return tokenized
+# GPT2 tokenizer does not have a pad token by default, so set it to eos token
+tokenizer.pad_token = tokenizer.eos_token
 
-# === Step 6: Group texts into blocks ===
-def group_texts(tokenized_dataset, block_size):
-    print(f"Grouping texts into blocks of size {block_size} ...")
-    def group_function(examples):
-        concatenated = {k: sum(examples[k], []) for k in examples.keys()}
-        total_length = (len(concatenated["input_ids"]) // block_size) * block_size
-        result = {
-            k: [t[i : i + block_size] for i in range(0, total_length, block_size)]
-            for k, t in concatenated.items()
-        }
-        result["labels"] = result["input_ids"].copy()
-        return result
-    grouped = tokenized_dataset.map(group_function, batched=True)
-    print(f"Grouping complete. Number of samples: {len(grouped['train'])}")
-    return grouped
+# === Step 4: Tokenize the dataset ===
+def tokenize_function(examples):
+    # Tokenize the text column
+    return tokenizer(examples["text"])
 
-# === Step 7: Load model ===
-def load_model(model_name, tokenizer):
-    print(f"Loading pre-trained model {model_name} ...")
-    model = GPT2LMHeadModel.from_pretrained(model_name)
-    model.config.pad_token_id = tokenizer.eos_token_id
-    print(f"Model pad_token_id set to {model.config.pad_token_id}")
-    return model
+print("Tokenizing dataset ...")
+tokenized_ds = raw_ds.map(tokenize_function, batched=True, remove_columns=["text"])
+print("Tokenization complete.")
 
-# === Step 8: Prepare data collator ===
-def prepare_data_collator(tokenizer):
-    print("Preparing data collator ...")
-    data_collator = DataCollatorForLanguageModeling(tokenizer=tokenizer, mlm=False)
-    return data_collator
+# === Step 5: Group texts into blocks of BLOCK_SIZE ===
+def group_texts(examples):
+    # Concatenate all input_ids into a single list
+    concatenated = {k: sum(examples[k], []) for k in examples.keys()}
+    # Calculate total length divisible by BLOCK_SIZE
+    total_length = (len(concatenated["input_ids"]) // BLOCK_SIZE) * BLOCK_SIZE
+    # Split into chunks of BLOCK_SIZE
+    result = {
+        k: [t[i : i + BLOCK_SIZE] for i in range(0, total_length, BLOCK_SIZE)]
+        for k, t in concatenated.items()
+    }
+    # Labels are same as input_ids for causal LM
+    result["labels"] = result["input_ids"].copy()
+    return result
 
-# === Step 9: Setup training arguments ===
-def setup_training_args(batch_size, epochs, lr):
-    print("Setting up training arguments ...")
-    training_args = TrainingArguments(
-        output_dir="results",
-        overwrite_output_dir=True,
-        evaluation_strategy="no",
-        per_device_train_batch_size=batch_size,
-        num_train_epochs=epochs,
-        learning_rate=lr,
-        weight_decay=0.01,
-        logging_steps=50,
-        logging_dir="logs",
-        save_steps=500,
-        save_total_limit=2,
-        fp16=False,
-        report_to=["none"],
-    )
-    print("Training arguments ready.")
-    return training_args
+print(f"Grouping texts into blocks of size {BLOCK_SIZE} ...")
+lm_ds = tokenized_ds.map(group_texts, batched=True)
+print(f"Number of training samples after grouping: {len(lm_ds['train'])}")
 
-# === Step 10: Initialize Trainer ===
-def initialize_trainer(model, training_args, train_dataset, data_collator):
-    print("Initializing Trainer ...")
-    trainer = Trainer(
-        model=model,
-        args=training_args,
-        train_dataset=train_dataset,
-        data_collator=data_collator,
-    )
-    print("Trainer initialized.")
-    return trainer
+# === Step 6: Load pre-trained GPT2 model ===
+print(f"Loading pre-trained model {MODEL_NAME} ...")
+model = GPT2LMHeadModel.from_pretrained(MODEL_NAME)
 
-# === Step 11: Train model ===
-def train_model(trainer):
-    print("Starting training ...")
-    trainer.train()
-    print("Training finished.")
+# Set pad_token_id to eos_token_id to avoid warnings during training
+model.config.pad_token_id = tokenizer.eos_token_id
 
-# === Step 12: Save model and tokenizer ===
-def save_model_and_tokenizer(trainer, tokenizer, output_dir):
-    print(f"Saving model and tokenizer to {output_dir} ...")
-    os.makedirs(output_dir, exist_ok=True)
-    trainer.save_model(output_dir)
-    tokenizer.save_pretrained(output_dir)
-    print("Model and tokenizer saved successfully.")
+# === Step 7: Prepare data collator for language modeling ===
+data_collator = DataCollatorForLanguageModeling(tokenizer=tokenizer, mlm=False)
 
-# === Main function ===
-def main():
-    DATA_FILE, MODEL_NAME, OUTPUT_DIR, BLOCK_SIZE, EPOCHS, LR, BATCH_SIZE = get_config()
-    check_dataset_file(DATA_FILE)
-    dataset = load_text_dataset(DATA_FILE)
-    tokenizer = load_tokenizer(MODEL_NAME)
-    tokenized_dataset = tokenize_dataset(dataset, tokenizer)
-    grouped_dataset = group_texts(tokenized_dataset, BLOCK_SIZE)
-    model = load_model(MODEL_NAME, tokenizer)
-    data_collator = prepare_data_collator(tokenizer)
-    training_args = setup_training_args(BATCH_SIZE, EPOCHS, LR)
-    trainer = initialize_trainer(model, training_args, grouped_dataset["train"], data_collator)
-    train_model(trainer)
-    save_model_and_tokenizer(trainer, tokenizer, OUTPUT_DIR)
-    print("✅ All done!")
+# === Step 8: Define training arguments ===
+training_args = TrainingArguments(
+    output_dir="results",            # Directory to save checkpoints and logs
+    overwrite_output_dir=True,       # Overwrite existing output directory
+    evaluation_strategy="no",        # No evaluation during training
+    per_device_train_batch_size=BATCH_SIZE,
+    num_train_epochs=EPOCHS,
+    learning_rate=LR,
+    weight_decay=0.01,
+    logging_steps=50,                # Log every 50 steps
+    logging_dir="logs",              # Directory for logs
+    save_steps=500,                 # Save checkpoint every 500 steps
+    save_total_limit=2,              # Keep only last 2 checkpoints
+    fp16=False,                     # Disable mixed precision (useful if no GPU)
+    report_to=["none"],             # Disable reporting to external services
+)
 
-if __name__ == "__main__":
-    main()
+# === Step 9: Initialize Trainer ===
+trainer = Trainer(
+    model=model,
+    args=training_args,
+    train_dataset=lm_ds["train"],
+    data_collator=data_collator,
+)
+
+# === Step 10: Start training ===
+print("🚀 Starting training...")
+trainer.train()
+
+# === Step 11: Save the fine-tuned model and tokenizer ===
+print(f"💾 Saving model and tokenizer to {OUTPUT_DIR} ...")
+os.makedirs(OUTPUT_DIR, exist_ok=True)
+trainer.save_model(OUTPUT_DIR)
+tokenizer.save_pretrained(OUTPUT_DIR)
+
+print("✅ Training complete! Model saved at:", OUTPUT_DIR)
