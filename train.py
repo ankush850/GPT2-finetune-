@@ -9,22 +9,26 @@ from transformers import (
 )
 
 # === Configurations ===
-DATA_FILE = "data/mydata.txt"   # apna dataset file
-MODEL_NAME = "gpt2"             # "gpt2-medium" bhi try kar sakte ho agar GPU hai
+DATA_FILE = "data/mydata.txt"   # Your dataset file
+MODEL_NAME = "gpt2"             # Try "gpt2-medium" if you have GPU
 OUTPUT_DIR = "finetuned_model"
-BLOCK_SIZE = 128
+BLOCK_SIZE = 256                # Increased context size (max 1024 for GPT-2)
 EPOCHS = 3
 LR = 2e-5
-BATCH_SIZE = 2
+BATCH_SIZE = 2                  # Increase if GPU available
 
 # === Load dataset ===
 assert os.path.exists(DATA_FILE), f"Dataset not found at {DATA_FILE}"
 print(f"📂 Loading dataset from {DATA_FILE} ...")
+
 raw_ds = load_dataset("text", data_files={"train": DATA_FILE})
+# Split into train & validation
+raw_ds = raw_ds["train"].train_test_split(test_size=0.1)
 
 # === Tokenizer ===
 tokenizer = GPT2TokenizerFast.from_pretrained(MODEL_NAME)
 tokenizer.pad_token = tokenizer.eos_token
+tokenizer.padding_side = "right"
 
 def tokenize_function(examples):
     return tokenizer(examples["text"])
@@ -55,16 +59,16 @@ data_collator = DataCollatorForLanguageModeling(tokenizer=tokenizer, mlm=False)
 training_args = TrainingArguments(
     output_dir="results",
     overwrite_output_dir=True,
-    evaluation_strategy="no",
+    evaluation_strategy="epoch",      # Evaluate after each epoch
     per_device_train_batch_size=BATCH_SIZE,
     num_train_epochs=EPOCHS,
     learning_rate=LR,
     weight_decay=0.01,
     logging_steps=50,
     logging_dir="logs",
-    save_steps=500,
-    save_total_limit=2,
-    fp16=False,     # ✅ force disable mixed precision (works on CPU)
+    save_strategy="epoch",            # Save only at the end of each epoch
+    save_total_limit=1,               # Keep only last checkpoint
+    fp16=False,                       # Set True if using GPU with mixed precision
     report_to=["none"],
 )
 
@@ -73,6 +77,7 @@ trainer = Trainer(
     model=model,
     args=training_args,
     train_dataset=lm_ds["train"],
+    eval_dataset=lm_ds["test"],
     data_collator=data_collator,
 )
 
