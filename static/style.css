@@ -1,49 +1,108 @@
 body {
+  margin: 0;
   font-family: Arial, sans-serif;
-  background: #f7f7f7;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  height: 100vh;
+  background: #f5f5f5;
+  transition: background 0.3s, color 0.3s;
 }
 
-.container {
-  background: white;
-  padding: 20px;
+.chat-container {
+  max-width: 700px;
+  margin: 30px auto;
+  background: #fff;
   border-radius: 12px;
-  width: 500px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-  text-align: center;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+  display: flex;
+  flex-direction: column;
+  height: 90vh;
+  overflow: hidden;
 }
 
-textarea {
-  width: 100%;
-  height: 100px;
-  margin: 10px 0;
-  padding: 10px;
-  border-radius: 8px;
-  border: 1px solid #ddd;
-  resize: none;
-}
-
-button {
-  padding: 10px 20px;
-  border: none;
-  background: #4CAF50;
+.chat-header {
+  background: #10a37f;
   color: white;
+  padding: 15px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.header-buttons {
+  display: flex;
+  gap: 10px;
+}
+
+.header-buttons button {
+  background: white;
+  border: none;
+  border-radius: 50%;
+  padding: 8px 12px;
+  cursor: pointer;
+  font-size: 16px;
+}
+
+.chat-box {
+  flex: 1;
+  padding: 15px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.message {
+  margin: 10px 0;
+  padding: 12px 15px;
+  border-radius: 12px;
+  max-width: 70%;
+  line-height: 1.4;
+  word-wrap: break-word;
+}
+
+.user-message {
+  background: #10a37f;
+  color: white;
+  align-self: flex-end;
+}
+
+.bot-message {
+  background: #e8e8e8;
+  color: black;
+  align-self: flex-start;
+}
+
+.chat-input {
+  display: flex;
+  padding: 10px;
+  background: #f1f1f1;
+}
+
+.chat-input input {
+  flex: 1;
+  padding: 12px;
+  border: none;
+  border-radius: 8px;
+  outline: none;
+}
+
+.chat-input button {
+  margin-left: 10px;
+  padding: 12px 20px;
+  background: #10a37f;
+  color: white;
+  border: none;
   border-radius: 8px;
   cursor: pointer;
 }
 
-button:hover {
-  background: #45a049;
+.dark-mode {
+  background: #1e1e1e;
+  color: white;
 }
 
-#response {
-  margin-top: 20px;
-  padding: 15px;
-  text-align: left;
-  background: #f1f1f1;
-  border-radius: 8px;
-  white-space: pre-wrap;
+.dark-mode .chat-container {
+  background: #2b2b2b;
+}
+
+.dark-mode .bot-message {
+  background: #3c3c3c;
+  color: #f5f5f5;
 }
