@@ -1,71 +1,29 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>GPT-2 Text Generator Application Interface</title>
-  <link rel="stylesheet" href="/static/style.css" />
-
-  
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ChatGPT Voice Clone</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
-  <div class="container">
-    <header>
-      <h1> GPT2-Finetune Tools </h1>
-      <p>
-        Welcome to the GPT-2 Powered Text Generation Application. This tool allows you to enter any text prompt and receive creative, AI-generated continuations based on the powerful GPT-2 language model.
-      </p>
-      <p>
-        Please enter your prompt in the text area below. Once you have entered your prompt, click the "Initiate Generation Process" button to start generating text. The generated output will appear below the button.
-      </p>
-    </header>
-
-    <section id="input-section">
-      <label for="prompt" style="font-weight: bold; display: block; margin-bottom: 8px;">
-        Enter your text prompt here:
-      </label>
-      <textarea
-        id="prompt"
-        name="prompt"
-        placeholder="Type your prompt here to start generating text..."
-        rows="10"
-        cols="80"
-        style="width: 100%; max-width: 800px; padding: 10px; font-size: 1rem; border: 1px solid #ccc; border-radius: 4px;"
-      ></textarea>
-    </section>
-
-    <section id="button-section" style="margin-top: 20px;">
-      <button
-        type="button"
-        onclick="generateTextFunctionCall()"
-        style="background-color: #4caf50; color: white; padding: 15px 32px; font-size: 16px; border: none; border-radius: 4px; cursor: pointer;"
-      >
-        Initiate Generation Process
-      </button>
-    </section>
-
-    <section id="response-section" style="margin-top: 30px;">
-      <h2>Generated Output</h2>
-      <div
-        id="response"
-        style="min-height: 150px; padding: 15px; border: 1px solid #ddd; border-radius: 4px; background-color: #fafafa; font-family: Arial, sans-serif; color: #333; white-space: pre-wrap; word-wrap: break-word;"
-      >
-        Generated output will appear here after submission.
+  <div class="chat-container">
+    <div class="chat-header">
+      <h2>🤖 AI Chat Assistant</h2>
+      <div class="header-buttons">
+        <button id="mic-btn">🎤</button>
+        <button id="toggle-theme">🌙</button>
       </div>
-    </section>
+    </div>
 
-    <footer style="margin-top: 40px; font-size: 0.9rem; color: #666; text-align: center;">
-      <p>
-        This application utilizes advanced machine learning models for text generation. The GPT-2 model is fine-tuned to provide creative and coherent text completions based on your input prompts.
-      </p>
-      <p>
-        For best results, try to provide clear and concise prompts. The generated text may vary in length and style depending on the input and model parameters.
-      </p>
-      <p>
-        &copy; 2024 GPT-2 Text Generator Application. All rights reserved.
-      </p>
-    </footer>
+    <div class="chat-box" id="chat-box"></div>
+
+    <div class="chat-input">
+      <input type="text" id="user-input" placeholder="Type your message...">
+      <button id="send-btn">➤</button>
+    </div>
   </div>
 
-  
+  <script src="{{ url_for('static', filename='script.js') }}"></script>
 </body>
 </html>
